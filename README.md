@@ -32,6 +32,7 @@ Press `Ctrl+C` to exit. The tmux launcher reattaches if the session already exis
 
 - **Frameless** — no borders, axes, ticks, or grid. Just braille data lines and a centered label.
 - **Flicker-free** — double-buffered rendering via `plt.build()` + ANSI cursor-home (`\033[H`).
+- **Instant Resize** — handles `SIGWINCH` signal to redraw instantly on terminal resize.
 - **Resize-safe** — clears leftover remnants on terminal resize (`\033[J`).
 - **Drift-free** — deadline-based timer loop instead of naive `sleep()`.
 - **GPU**: queries NVML C library directly via `pynvml` (no `nvidia-smi` subprocess).

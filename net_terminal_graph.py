@@ -5,6 +5,7 @@ import sys
 import math
 from collections import deque
 import plotext as plt
+import signal
 
 # ---- config ----
 INTERVAL_S = 0.5
@@ -62,6 +63,57 @@ def main():
     # Let first sample settle
     time.sleep(INTERVAL_S)
 
+    # Shared state for redraw
+    state = {
+        "dl_rates": dl_rates,
+        "ul_rates": ul_rates,
+        "dl": 0.0,
+        "ul": 0.0,
+        "last_draw": 0.0
+    }
+
+    def draw():
+        """Idempotent draw function"""
+        # Rate limit redraws
+        now = time.monotonic()
+        if now - state["last_draw"] < 0.05:
+            return
+        state["last_draw"] = now
+
+        # Compute scaling based on current window peak
+        peak = max(max(state["dl_rates"]), max(state["ul_rates"]), 1.0)
+        unit_name, divisor = pick_unit(peak)
+        
+        dl_scaled = [v / divisor for v in state["dl_rates"]]
+        ul_scaled = [v / divisor for v in state["ul_rates"]]
+        y_max = math.ceil(max(max(dl_scaled), max(ul_scaled), 0.01) * 1.15)
+
+        dl_label = format_rate(state["dl"])
+        ul_label = format_rate(state["ul"])
+
+        plt.clf()
+        plt.theme("clear")
+        plt.plotsize(None, None)
+
+        plt.plot(xs, dl_scaled, label=f"↓ {dl_label}", color="green", marker="braille")
+        plt.plot(xs, ul_scaled, label=f"↑ {ul_label}", color="yellow", marker="braille")
+
+        plt.frame(False)
+        plt.xticks([])
+        plt.yticks([])
+        plt.ylim(0, y_max)
+        plt.xlim(-WINDOW_SECONDS, 0)
+        plt.grid(False, False)
+        plt.text(f"Net  {unit_name}", x=-WINDOW_SECONDS / 2, y=y_max * 0.9, color="default", alignment="center")
+
+        sys.stdout.write("\033[H" + plt.build().rstrip() + "\033[J")
+        sys.stdout.flush()
+
+    def on_resize(signum, frame):
+        draw()
+
+    signal.signal(signal.SIGWINCH, on_resize)
+
     try:
         while True:
             now = time.monotonic()
@@ -74,41 +126,11 @@ def main():
             prev_rx, prev_tx = rx, tx
             prev_time = now
 
+            state["dl"], state["ul"] = dl, ul
             dl_rates.append(dl)
             ul_rates.append(ul)
 
-            # Find peak across entire window to pick unit + Y range
-            peak = max(max(dl_rates), max(ul_rates), 1.0)
-            unit_name, divisor = pick_unit(peak)
-
-            # Scale all values to the chosen unit
-            dl_scaled = [v / divisor for v in dl_rates]
-            ul_scaled = [v / divisor for v in ul_rates]
-            y_max = math.ceil(max(max(dl_scaled), max(ul_scaled), 0.01) * 1.15)
-
-            # Current rate labels
-            dl_label = format_rate(dl)
-            ul_label = format_rate(ul)
-
-            # ---- draw ----
-            plt.clf()
-            plt.theme("clear")
-            plt.plotsize(None, None)
-
-            plt.plot(xs, dl_scaled, label=f"↓ {dl_label}", color="green", marker="braille")
-            plt.plot(xs, ul_scaled, label=f"↑ {ul_label}", color="yellow", marker="braille")
-
-            plt.frame(False)
-            plt.xticks([])
-            plt.yticks([])
-            plt.ylim(0, y_max)
-            plt.xlim(-WINDOW_SECONDS, 0)
-            plt.grid(False, False)
-            plt.text(f"Net  {unit_name}", x=-WINDOW_SECONDS / 2, y=y_max * 0.9, color="default", alignment="center")
-
-            plot_str = plt.build()
-            sys.stdout.write("\033[H" + plot_str.rstrip() + "\033[J")
-            sys.stdout.flush()
+            draw()
 
             time.sleep(max(0, next_tick - time.monotonic()))
             next_tick += INTERVAL_S

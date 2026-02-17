@@ -35,36 +35,66 @@ def get_gpu_metrics():
     return float(rates.gpu), mem_pct
 
 # ---- main loop ----
+import signal
+
+# ... existing code ...
+
+# ---- main loop ----
 def main():
     sys.stdout.write("\033[?25l")  # hide cursor
     sys.stdout.flush()
+
+    # Shared state for redraw
+    state = {
+        "gpu_util": gpu_util,
+        "mem_util": mem_util,
+        "g": 0.0,
+        "m": 0.0,
+        "last_draw": 0.0
+    }
+
+    def draw():
+        """Idempotent draw function"""
+        # Rate limit redraws to avoid resize storms
+        now = time.monotonic()
+        if now - state["last_draw"] < 0.05:
+            return
+        state["last_draw"] = now
+
+        plt.clf()
+        plt.theme("clear")
+        plt.plotsize(None, None)
+
+        plt.plot(xs, list(state["gpu_util"]), label=f"GPU  {state['g']:.0f}%", color="cyan", marker="braille")
+        plt.plot(xs, list(state["mem_util"]), label=f"Mem  {state['m']:.0f}%", color="magenta", marker="braille")
+
+        plt.frame(False)
+        plt.xticks([])
+        plt.yticks([])
+        plt.text(f"GPU {GPU_INDEX}", x=-WINDOW_SECONDS / 2, y=90, color="default", alignment="center")
+        plt.ylim(0, 100)
+        plt.xlim(-WINDOW_SECONDS, 0)
+        plt.grid(False, False)
+
+        sys.stdout.write("\033[H" + plt.build().rstrip() + "\033[J")
+        sys.stdout.flush()
+
+    def on_resize(signum, frame):
+        draw()
+
+    signal.signal(signal.SIGWINCH, on_resize)
 
     next_tick = time.monotonic()
     try:
         while True:
             next_tick += INTERVAL_S
             g, m = get_gpu_metrics()
-
+            
+            state["g"], state["m"] = g, m
             gpu_util.append(g)
             mem_util.append(m)
 
-            plt.clf()
-            plt.theme("clear")
-            plt.plotsize(None, None)
-
-            plt.plot(xs, list(gpu_util), label=f"GPU  {g:.0f}%", color="cyan", marker="braille")
-            plt.plot(xs, list(mem_util), label=f"Mem  {m:.0f}%", color="magenta", marker="braille")
-
-            plt.frame(False)
-            plt.xticks([])
-            plt.yticks([])
-            plt.text(f"GPU {GPU_INDEX}", x=-WINDOW_SECONDS / 2, y=90, color="default", alignment="center")
-            plt.ylim(0, 100)
-            plt.xlim(-WINDOW_SECONDS, 0)
-            plt.grid(False, False)
-
-            sys.stdout.write("\033[H" + plt.build().rstrip() + "\033[J")
-            sys.stdout.flush()
+            draw()
 
             time.sleep(max(0, next_tick - time.monotonic()))
 
