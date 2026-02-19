@@ -42,6 +42,11 @@ tmux kill-session -t muxmon
 # Launch all available monitors in adaptive square-ish grid
 ./launcher.py --all --layout auto-square
 
+# Geometry-adaptive mode:
+# very narrow terminal -> 1xN stack
+# normal/wide terminal -> adaptive grid
+./launcher.py --all --layout auto-geometry
+
 # Your current "close to ideal" mode
 ./launcher.py --all --layout auto-square --no-pad-empty --no-pane-borders
 ```
@@ -81,14 +86,29 @@ Notes:
 - `--session <name>`: tmux session name (default `muxmon`).
 - `--layout <mode>`:
   - linear modes: `vertical`, `horizontal`, `tiled`
-  - adaptive grid modes: `auto`, `auto-square`, `auto-wide`, `auto-tall`
+  - adaptive grid modes: `auto`, `auto-geometry`, `auto-square`, `auto-wide`, `auto-tall`
   - aliases: `grid` -> `square`, `square`, `wide`, `tall`
+- `--auto-geometry-stack-max-aspect <float>`:
+  - for `auto-geometry`, at/below this `cols/rows` ratio use `1xN` stack (default `0.95`)
+  - `cols` and `rows` are terminal character-cell dimensions (`shutil.get_terminal_size()`)
+- `--auto-geometry-tall-max-aspect <float>`:
+  - for `auto-geometry`, at/below this ratio use tall-biased grid (default `1.25`)
+- `--auto-geometry-wide-min-aspect <float>`:
+  - for `auto-geometry`, at/above this ratio use wide-biased grid (default `2.40`)
+- `--live-reflow / --no-live-reflow`:
+  - when enabled, re-evaluates layout on tmux `client-resized` / `client-attached`
+  - uses lightweight `select-layout` only (no pane respawn)
+- `--live-reflow-min-interval-ms <int>`:
+  - debounce interval for reflow events (default `180`)
 - `--pad-empty / --no-pad-empty`:
   - `--pad-empty` fills unused grid slots with blank panes for uniform cell size.
   - `--no-pad-empty` creates only needed panes; last row can be wider.
 - `--pane-borders / --no-pane-borders`: show/hide pane separators.
+- `--pane-border-color <color>`: non-active pane border color (default `colour235`).
+- `--pane-active-border-color <color>`: active pane border color when highlight is enabled (default `cyan`).
+- `--pane-muted-border-color <color>`: low-contrast border color used by `--no-pane-borders` (default `black`).
 - `--active-pane-highlight / --no-active-pane-highlight`:
-  - when enabled, active pane border uses accent color (`fg=cyan`)
+  - when enabled, active pane border uses `--pane-active-border-color`
   - when disabled (default), active pane border matches other panes
 
 ### Shared Monitor Flags (`muxmon/base.py`)
@@ -100,6 +120,54 @@ These apply to every monitor module:
 - `--title <text>`
 - `--no-legend`
 - `--frame / --no-frame` default `--no-frame`
+- `--title-color <color>`
+- `--axes-color <color>`
+- `--ticks-color <color>`
+- `--canvas-color <color>`
+- `--series-colors c1,c2,c3` (applies by series order)
+- `--series-color name=color` (repeatable, per-series override)
+
+## Color Customization Examples
+
+### Pane border palette only
+
+```bash
+./launcher.py --all \
+  --pane-borders \
+  --pane-border-color colour240 \
+  --pane-active-border-color colour45 \
+  --active-pane-highlight
+```
+
+### Chart lines/title/frame palette
+
+```bash
+./launcher.py --all --layout auto-square --pane-borders -- --frame \
+  --title-color white \
+  --axes-color colour240 \
+  --ticks-color colour240 \
+  --series-colors cyan,magenta,green,yellow
+```
+
+### Precise series override by name (example: CPU)
+
+```bash
+./launcher.py cpu -- --series-color usr=green --series-color sys=yellow
+```
+
+### Tune `auto-geometry` for earlier vertical stacking
+
+```bash
+./launcher.py --all --layout auto-geometry \
+  --auto-geometry-stack-max-aspect 1.10 \
+  --auto-geometry-tall-max-aspect 1.35
+```
+
+### Enable live reflow on terminal resize
+
+```bash
+./launcher.py --all --layout auto-geometry --live-reflow
+```
 
 ## Available Monitors
 
@@ -133,6 +201,10 @@ Where:
 Target ratio by mode:
 
 - `auto`: follows terminal aspect ratio (clamped)
+- `auto-geometry`: explicit geometry mode:
+  - narrow terminals (`width/height <= 0.95` by default) -> `1xN` vertical stack
+  - wide terminals (`width/height >= 2.40` by default) -> uses `auto-wide`
+  - between those -> uses square/tall bias based on aspect
 - `auto-square` / `square` / `grid`: target `1.0`
 - `auto-wide` / `wide`: bias toward more columns
 - `auto-tall` / `tall`: bias toward more rows
@@ -148,6 +220,12 @@ Grid launch flow:
 5. `respawn-pane` each slot with monitor command (or blank placeholder if padded).
 
 This avoids `tmux tiled` surprises and gives deterministic placement.
+
+### 2b) Live reflow behavior
+
+- Live reflow does not restart monitor processes.
+- On resize, it re-applies a tmux layout (`even-vertical`, `even-horizontal`, or `tiled`) based on current pane count and terminal aspect.
+- This keeps CPU cost low; tradeoff is that complex multi-row grids under `tiled` are approximate during live reflow.
 
 ### 3) Scaling/readability implications
 

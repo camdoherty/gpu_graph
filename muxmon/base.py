@@ -100,6 +100,37 @@ class BaseMonitor(ABC):
             default=False,
             help="Show chart frame border (default: off)",
         )
+        parser.add_argument(
+            "--title-color",
+            default="default",
+            help="Title color (default: default)",
+        )
+        parser.add_argument(
+            "--axes-color",
+            default=None,
+            help="Frame/axes color (default: plotext default)",
+        )
+        parser.add_argument(
+            "--ticks-color",
+            default=None,
+            help="Ticks color (default: plotext default)",
+        )
+        parser.add_argument(
+            "--canvas-color",
+            default=None,
+            help="Canvas background color (default: plotext default)",
+        )
+        parser.add_argument(
+            "--series-colors",
+            default=None,
+            help="Comma-separated colors applied to series in order",
+        )
+        parser.add_argument(
+            "--series-color",
+            action="append",
+            default=[],
+            help="Per-series color override as name=color (repeatable)",
+        )
         # Subclass-specific flags
         self.add_args(parser)
         self.args = parser.parse_args(argv)
@@ -115,6 +146,7 @@ class BaseMonitor(ABC):
         self._last_draw = 0.0
 
         self.setup(self.args)
+        self._apply_series_color_overrides()
 
     # ---- subclass interface ----
 
@@ -154,6 +186,35 @@ class BaseMonitor(ABC):
 
     # ---- rendering ----
 
+    def _apply_series_color_overrides(self) -> None:
+        if self.args.series_colors:
+            colors = [c.strip() for c in self.args.series_colors.split(",") if c.strip()]
+            for s, color in zip(self._series, colors):
+                s.color = color
+
+        if not self.args.series_color:
+            return
+
+        for item in self.args.series_color:
+            if "=" not in item:
+                print(
+                    f"Invalid --series-color value '{item}'. Expected name=color.",
+                    file=sys.stderr,
+                )
+                sys.exit(2)
+            name, color = item.split("=", 1)
+            name = name.strip()
+            color = color.strip()
+            if not name or not color:
+                print(
+                    f"Invalid --series-color value '{item}'. Expected name=color.",
+                    file=sys.stderr,
+                )
+                sys.exit(2)
+            s = self._series_map.get(name)
+            if s is not None:
+                s.color = color
+
     def _draw(self) -> None:
         now = time.monotonic()
         if now - self._last_draw < 0.05:
@@ -163,6 +224,12 @@ class BaseMonitor(ABC):
         plt.clf()
         plt.theme("clear")
         plt.plotsize(None, None)
+        if self.args.canvas_color:
+            plt.canvas_color(self.args.canvas_color)
+        if self.args.axes_color:
+            plt.axes_color(self.args.axes_color)
+        if self.args.ticks_color:
+            plt.ticks_color(self.args.ticks_color)
 
         # Group series by unit_mode for scaling
         y_min, y_max = 0.0, 100.0
@@ -217,7 +284,7 @@ class BaseMonitor(ABC):
         title_text = "  ".join(title_parts)
 
         plt.text(title_text, x=-self.window_seconds / 2, y=y_max * 0.9,
-                 color="default", alignment="center")
+                 color=self.args.title_color, alignment="center")
 
         sys.stdout.write("\033[H" + plt.build().rstrip() + "\033[J")
         sys.stdout.flush()
