@@ -13,6 +13,7 @@ import math
 import signal
 import sys
 import time
+import argparse
 from abc import ABC, abstractmethod
 from argparse import ArgumentParser, Namespace
 from collections import deque
@@ -93,6 +94,12 @@ class BaseMonitor(ABC):
                             help="Override chart title")
         parser.add_argument("--no-legend", action="store_true",
                             help="Hide the legend labels")
+        parser.add_argument(
+            "--frame",
+            action=argparse.BooleanOptionalAction,
+            default=False,
+            help="Show chart frame border (default: off)",
+        )
         # Subclass-specific flags
         self.add_args(parser)
         self.args = parser.parse_args(argv)
@@ -193,7 +200,7 @@ class BaseMonitor(ABC):
                     label = s.formatted_label() if not self.args.no_legend else ""
                     plt.plot(self.xs, list(s.data), label=label, color=s.color, marker="braille")
 
-        plt.frame(False)
+        plt.frame(self.args.frame)
         plt.xticks([])
         plt.yticks([])
         plt.ylim(y_min, y_max)
