@@ -1,15 +1,5 @@
 #!/usr/bin/env bash
-# Launch GPU + Network monitor in a tmux split
-PYTHON="/home/cad/dev/gpu_graph/venv/bin/python3"
-GPU="/home/cad/dev/gpu_graph/gpu_terminal_graph.py"
-NET="/home/cad/dev/gpu_graph/net_terminal_graph.py"
+set -euo pipefail
 
-if tmux has-session -t monitor 2>/dev/null; then
-  tmux attach-session -t monitor
-else
-  tmux new-session -d -s monitor "$PYTHON $GPU" \; \
-    set-option -t monitor status off \; \
-    split-window -v "$PYTHON $NET" \; \
-    select-pane -t 0 \; \
-    attach-session -t monitor
-fi
+# Backward-compatible wrapper to the renamed launcher.
+exec /home/cad/dev/gpu_graph/stb_mon_gpu_net "$@"

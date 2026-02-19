@@ -1,0 +1,50 @@
+You have access to both StB repos:
+ - backend:`~/dev/stb_simplified` 
+ - frontend:`~/dev/jan-testing-hub-109e38bc`
+ 
+ As well as the monitoring repo:
+ - `~/dev/gpu_graph` 
+
+
+Primary objective:
+Confirm whether the current monitor is effective for this practical requirement:
+- Cloud LLM prompts/responses produce external traffic spikes.
+- Local-model prompts/responses produce no meaningful external traffic.
+- Therefore, local-model usage is not leaking externally under normal operation.
+
+Artifacts to inspect:
+- `stb_netacct_terminal_graph.py`
+- `stb_netacct/iptables/stb_netacct_rules.sh`
+- `stb_netacct/iptables/stb_netacct_export.py`
+- `stb_netacct/systemd/stb-netacct.service`
+- `mon_gpu_net` (current launcher)
+- `mon_gpu_net_all.sh` (legacy, total traffic monitor)
+
+Tasks (required):
+1) Verify monitor plumbing end-to-end
+- Confirm counters source, update cadence, and what exactly is counted/excluded.
+- Confirm cgroup/service coverage for StB runtime components and subprocesses.
+
+2) Verify LLM traffic behavior empirically
+- Run controlled test matrix with timestamps:
+  - Cloud LLM request(s): expect clear spikes during prompt/response window.
+  - Local LLM request(s): expect near-zero external deltas.
+- Capture objective evidence (commands, logs, counter snapshots, timing alignment).
+
+3) Rule out obvious confounders
+- Identify other StB/non-StB traffic sources that could mimic spikes.
+- State whether observed spike patterns are specific enough to support the leakage claim.
+
+4) Deliver verdict
+- “Confirmed”, “Partially confirmed”, or “Not confirmed”.
+- Confidence 0–100% with rationale.
+- If gaps remain, propose the smallest next step to close them (minimal code/config change).
+
+Output format:
+- Findings first (severity ordered), each with claim + evidence + impact.
+- Then verdict/confidence.
+- Then minimal remediation (if needed).
+
+Decision criteria to use:
+- Confirmed if repeated cloud tests consistently spike and repeated local tests remain flat within a small baseline/noise threshold.
+- Not confirmed if local-mode tests show unexplained external deltas or cloud/local cannot be reliably distinguished.

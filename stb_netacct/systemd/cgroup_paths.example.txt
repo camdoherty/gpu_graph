@@ -1,0 +1,5 @@
+# One cgroup path per line. Leave unset to use built-in defaults for host-agent/server/shell.
+/user.slice/user-1000.slice/user@1000.service/app.slice/app-stb\x2dnext\x2dhost\x2dagent.slice/stb-next-host-agent@split.service
+/user.slice/user-1000.slice/user@1000.service/app.slice/app-stb\x2dnext\x2dserver.slice/stb-next-server@split.service
+/user.slice/user-1000.slice/user@1000.service/app.slice/app-stb\x2dnext\x2dshell.slice/stb-next-shell@split.service
+
