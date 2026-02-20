@@ -88,6 +88,15 @@ class BaseMonitor(ABC):
         # Universal flags
         parser.add_argument("--interval", type=float, default=0.5,
                             help="Update interval in seconds (default: 0.5)")
+        parser.add_argument(
+            "--draw-interval",
+            type=float,
+            default=None,
+            help=(
+                "Redraw interval in seconds. Defaults to --interval. "
+                "Set higher than --interval to reduce render CPU."
+            ),
+        )
         parser.add_argument("--window", type=float, default=60.0,
                             help="Rolling history window in seconds (default: 60)")
         parser.add_argument("--title", default=None,
@@ -136,6 +145,10 @@ class BaseMonitor(ABC):
         self.args = parser.parse_args(argv)
 
         self.interval_s = max(0.1, self.args.interval)
+        if self.args.draw_interval is None:
+            self.draw_interval_s = self.interval_s
+        else:
+            self.draw_interval_s = max(0.05, self.args.draw_interval)
         self.window_seconds = max(self.interval_s * 4, self.args.window)
         self.max_points = max(2, int(self.window_seconds / self.interval_s))
         self.xs = [i * self.interval_s - self.window_seconds for i in range(self.max_points)]
@@ -215,9 +228,9 @@ class BaseMonitor(ABC):
             if s is not None:
                 s.color = color
 
-    def _draw(self) -> None:
+    def _draw(self, *, force: bool = False) -> None:
         now = time.monotonic()
-        if now - self._last_draw < 0.05:
+        if not force and now - self._last_draw < self.draw_interval_s:
             return
         self._last_draw = now
 
@@ -297,7 +310,7 @@ class BaseMonitor(ABC):
         sys.stdout.flush()
 
         def on_resize(signum, frame):
-            self._draw()
+            self._draw(force=True)
 
         signal.signal(signal.SIGWINCH, on_resize)
 

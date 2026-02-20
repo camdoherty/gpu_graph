@@ -14,13 +14,13 @@ Contextual restatement of the current requirement:
 
 ```bash
 # List available monitors
-./launcher.py --list
+/home/cad/dev/gpu_graph/launcher.py --list
 
 # Launch all available monitors in an adaptive grid
-./launcher.py --all --layout auto-geometry
+/home/cad/dev/gpu_graph/launcher.py --all --layout auto-geometry
 
 # Current preferred command style
-./launcher.py cpu cpu mem net --layout auto-geometry --live-reflow --no-pad-empty -- --no-frame
+/home/cad/dev/gpu_graph/launcher.py cpu cpu mem net --layout auto-geometry --live-reflow --no-pad-empty -- --no-frame
 ```
 
 ## Border Controls
@@ -32,10 +32,10 @@ Two independent border systems exist:
 
 ```bash
 # All on
-./launcher.py --all --pane-borders -- --frame
+/home/cad/dev/gpu_graph/launcher.py --all --pane-borders -- --frame
 
 # All off
-./launcher.py --all --no-pane-borders -- --no-frame
+/home/cad/dev/gpu_graph/launcher.py --all --no-pane-borders -- --no-frame
 ```
 
 Notes:
@@ -65,7 +65,7 @@ Additionally, `auto-geometry` now penalizes pane shapes that are too tall/narrow
 ## Live Reflow
 
 ```bash
-./launcher.py --all --layout auto-geometry --live-reflow
+/home/cad/dev/gpu_graph/launcher.py --all --layout auto-geometry --live-reflow
 ```
 
 - Hooks `client-resized` and `client-attached`
@@ -79,7 +79,7 @@ Tradeoff: complex grids during live reflow are approximate because processes are
 ### Pane border colors
 
 ```bash
-./launcher.py --all \
+/home/cad/dev/gpu_graph/launcher.py --all \
   --pane-borders \
   --pane-border-color colour240 \
   --pane-active-border-color colour45 \
@@ -89,7 +89,7 @@ Tradeoff: complex grids during live reflow are approximate because processes are
 ### Chart palette (shared monitor flags)
 
 ```bash
-./launcher.py --all -- --frame \
+/home/cad/dev/gpu_graph/launcher.py --all -- --frame \
   --title-color white \
   --axes-color colour240 \
   --ticks-color colour240 \
@@ -100,7 +100,7 @@ Tradeoff: complex grids during live reflow are approximate because processes are
 ### Per-series override
 
 ```bash
-./launcher.py cpu -- --series-color usr=green --series-color sys=yellow
+/home/cad/dev/gpu_graph/launcher.py cpu -- --series-color usr=green --series-color sys=yellow
 ```
 
 ## CLI Reference
@@ -126,6 +126,7 @@ Tradeoff: complex grids during live reflow are approximate because processes are
 ### Shared monitor flags (`--` pass-through)
 
 - `--interval <seconds>`
+- `--draw-interval <seconds>` (defaults to `--interval`)
 - `--window <seconds>`
 - `--title <text>`
 - `--no-legend`
@@ -147,7 +148,7 @@ Current registry names:
 - `net`
 - `storage` (`disk`, `io`)
 
-Use `./launcher.py --list` to verify runtime availability.
+Use `/home/cad/dev/gpu_graph/launcher.py --list` to verify runtime availability.
 
 ## Session Lifecycle
 
@@ -156,7 +157,7 @@ To apply new layout construction flags, recreate the session:
 
 ```bash
 tmux kill-session -t muxmon
-./launcher.py --all --layout auto-geometry
+/home/cad/dev/gpu_graph/launcher.py --all --layout auto-geometry
 ```
 
 ## Troubleshooting
