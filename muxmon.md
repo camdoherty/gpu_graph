@@ -1,135 +1,82 @@
 # muxmon
 
-`muxmon` is the `tmux` launcher + plugin monitor system in this repo.
-It is optimized for dense multi-pane terminal monitoring where every pane stays readable under resize.
+`muxmon` launches monitor modules into a `tmux` session and arranges them in adaptive pane layouts.
 
-## What It Solves
+## Goal
 
-- Launch multiple monitors in one `tmux` session from one command.
-- Build adaptive `NxN`-style grids for mixed terminal sizes.
-- Keep monitor rendering frameless by default, with optional frame/border toggles.
-- Reattach quickly to an existing monitor session.
+Create a reliable adaptive grid that keeps panes readable across terminal sizes.
+
+Contextual restatement of the current requirement:
+
+> In `auto-geometry`, prefer balanced rectangular panes (wider than tall) and switch to multi-row grids earlier, instead of staying in a single long row until the terminal is very narrow.
 
 ## Quick Start
 
 ```bash
-# Tested GOOD
-./launcher.py 
-/home/cad/dev/gpu_graph/launcher.py --all --layout auto-square  --no-pad-empty -- --no-frame
-/home/cad/dev/gpu_graph/launcher.py --all --layout auto-square  --no-pad-empty --pane-borders -- --no-frame
-
-```
-/home/cad/dev/gpu_graph/launcher.py --all --layout auto-square  --no-pad-empty  ## CPU pane has different pane border color
-/home/cad/dev/gpu_graph/launcher.py --all --layout auto-square  --no-pad-empty -- --frame ## correctly shows frames - CPU pane has different pane border color
-/home/cad/dev/gpu_graph/launcher.py --all --layout auto-square  --no-pad-empty --pane-borders -- --no-frame ## CPU pane has different pane border color
-
-tmux kill-session -t muxmon
-/home/cad/dev/gpu_graph/launcher.py --all --layout auto-square --no-active-pane-highlight
-/home/cad/dev/gpu_graph/launcher.py --all --layout auto-square --no-pad-empty --no-pane-borders --no-active-pane-highlight -- --no-frame
-/home/cad/dev/gpu_graph/launcher.py --all --layout auto-square --no-pad-empty --no-pane-borders --no-active-pane-highlight -- --frame
-./launcher.py --all --layout auto-square --no-active-pane-highlight
-
-tmux kill-session -t muxmon
-/home/cad/dev/gpu_graph/launcher.py  --all --layout auto-square --no-active-pane-highlight
-tmux kill-session -t muxmon
-/home/cad/dev/gpu_graph/launcher.py  --all --layout auto-square --no-pad-empty --pane-borders --no-active-pane-highlight -- --no-frame
-
-
-```bash
-# List monitors available on this host
+# List available monitors
 ./launcher.py --list
 
-# Launch all available monitors in adaptive square-ish grid
-./launcher.py --all --layout auto-square
-
-# Geometry-adaptive mode:
-# very narrow terminal -> 1xN stack
-# normal/wide terminal -> adaptive grid
+# Launch all available monitors in an adaptive grid
 ./launcher.py --all --layout auto-geometry
 
-# Your current "close to ideal" mode
-./launcher.py --all --layout auto-square --no-pad-empty --no-pane-borders
+# Current preferred command style
+./launcher.py cpu cpu mem net --layout auto-geometry --live-reflow --no-pad-empty -- --no-frame
 ```
 
-## Border Controls (All On / All Off)
+## Border Controls
 
-There are two independent border systems:
+Two independent border systems exist:
 
-- `tmux` pane borders (between panes)
-- chart frame border (inside each monitor plot)
-
-### All borders ON
+- `tmux` pane separators (between panes)
+- Monitor plot frame (inside each chart)
 
 ```bash
+# All on
 ./launcher.py --all --pane-borders -- --frame
-```
 
-### All borders OFF
-
-```bash
+# All off
 ./launcher.py --all --no-pane-borders -- --no-frame
 ```
 
 Notes:
 
-- `--pane-borders/--no-pane-borders` are launcher flags.
-- `--frame/--no-frame` are monitor flags passed through after `--`.
-- Pass-through args are sent to every pane command. Use shared flags when launching mixed monitors.
-- tmux 3.3a cannot fully disable pane separator drawing; `--no-pane-borders` uses a low-contrast border color.
+- `--pane-borders` is a launcher flag.
+- `--frame` is a monitor flag passed after `--`.
+- On tmux 3.3a, pane separators cannot be fully disabled; `--no-pane-borders` uses a muted color.
 
-## CLI Reference
+## Layout Modes
 
-### Launcher (`launcher.py`)
+`--layout` supports:
 
-- `--all`: launch all monitors with `is_available() == True`.
-- `--list`: print available monitors.
-- `--session <name>`: tmux session name (default `muxmon`).
-- `--layout <mode>`:
-  - linear modes: `vertical`, `horizontal`, `tiled`
-  - adaptive grid modes: `auto`, `auto-geometry`, `auto-square`, `auto-wide`, `auto-tall`
-  - aliases: `grid` -> `square`, `square`, `wide`, `tall`
-- `--auto-geometry-stack-max-aspect <float>`:
-  - for `auto-geometry`, at/below this `cols/rows` ratio use `1xN` stack (default `0.95`)
-  - `cols` and `rows` are terminal character-cell dimensions (`shutil.get_terminal_size()`)
-- `--auto-geometry-tall-max-aspect <float>`:
-  - for `auto-geometry`, at/below this ratio use tall-biased grid (default `1.25`)
-- `--auto-geometry-wide-min-aspect <float>`:
-  - for `auto-geometry`, at/above this ratio use wide-biased grid (default `2.40`)
-- `--live-reflow / --no-live-reflow`:
-  - when enabled, re-evaluates layout on tmux `client-resized` / `client-attached`
-  - uses lightweight `select-layout` only (no pane respawn)
-- `--live-reflow-min-interval-ms <int>`:
-  - debounce interval for reflow events (default `180`)
-- `--pad-empty / --no-pad-empty`:
-  - `--pad-empty` fills unused grid slots with blank panes for uniform cell size.
-  - `--no-pad-empty` creates only needed panes; last row can be wider.
-- `--pane-borders / --no-pane-borders`: show/hide pane separators.
-- `--pane-border-color <color>`: non-active pane border color (default `colour235`).
-- `--pane-active-border-color <color>`: active pane border color when highlight is enabled (default `cyan`).
-- `--pane-muted-border-color <color>`: low-contrast border color used by `--no-pane-borders` (default `black`).
-- `--active-pane-highlight / --no-active-pane-highlight`:
-  - when enabled, active pane border uses `--pane-active-border-color`
-  - when disabled (default), active pane border matches other panes
+- Linear: `vertical`, `horizontal`, `tiled`
+- Adaptive/grid: `auto`, `auto-geometry`, `auto-square`, `auto-wide`, `auto-tall`
+- Aliases: `grid -> square`, `wide -> auto-wide`, `tall -> auto-tall`
 
-### Shared Monitor Flags (`muxmon/base.py`)
+### `auto-geometry` thresholds
 
-These apply to every monitor module:
+`auto-geometry` uses terminal aspect ratio (`terminal_cols / terminal_rows`, in character cells):
 
-- `--interval <seconds>` default `0.5`
-- `--window <seconds>` default `60`
-- `--title <text>`
-- `--no-legend`
-- `--frame / --no-frame` default `--no-frame`
-- `--title-color <color>`
-- `--axes-color <color>`
-- `--ticks-color <color>`
-- `--canvas-color <color>`
-- `--series-colors c1,c2,c3` (applies by series order)
-- `--series-color name=color` (repeatable, per-series override)
+- `--auto-geometry-stack-max-aspect` (default `0.95`): at/below this, force `1xN` vertical stack
+- `--auto-geometry-tall-max-aspect` (default `1.25`): at/below this, bias toward taller grids
+- `--auto-geometry-wide-min-aspect` (default `2.40`): at/above this, bias toward wider grids
 
-## Color Customization Examples
+Additionally, `auto-geometry` now penalizes pane shapes that are too tall/narrow, so it prefers width-leaning rectangular cells and moves to multi-row layouts earlier.
 
-### Pane border palette only
+## Live Reflow
+
+```bash
+./launcher.py --all --layout auto-geometry --live-reflow
+```
+
+- Hooks `client-resized` and `client-attached`
+- Uses lightweight `tmux select-layout` only (no pane respawn)
+- Debounced via `--live-reflow-min-interval-ms` (default `180`)
+
+Tradeoff: complex grids during live reflow are approximate because processes are not restarted.
+
+## Color Customization
+
+### Pane border colors
 
 ```bash
 ./launcher.py --all \
@@ -139,126 +86,84 @@ These apply to every monitor module:
   --active-pane-highlight
 ```
 
-### Chart lines/title/frame palette
+### Chart palette (shared monitor flags)
 
 ```bash
-./launcher.py --all --layout auto-square --pane-borders -- --frame \
+./launcher.py --all -- --frame \
   --title-color white \
   --axes-color colour240 \
   --ticks-color colour240 \
+  --canvas-color black \
   --series-colors cyan,magenta,green,yellow
 ```
 
-### Precise series override by name (example: CPU)
+### Per-series override
 
 ```bash
 ./launcher.py cpu -- --series-color usr=green --series-color sys=yellow
 ```
 
-### Tune `auto-geometry` for earlier vertical stacking
+## CLI Reference
 
-```bash
-./launcher.py --all --layout auto-geometry \
-  --auto-geometry-stack-max-aspect 1.10 \
-  --auto-geometry-tall-max-aspect 1.35
-```
+### Launcher flags
 
-### Enable live reflow on terminal resize
+- `--all`: launch all available monitors
+- `--list`: list available monitors and exit
+- `--session <name>`: tmux session name (default `muxmon`)
+- `--layout <mode>`: pane layout mode
+- `--pad-empty / --no-pad-empty`: pad grid with blank panes or not
+- `--pane-borders / --no-pane-borders`
+- `--pane-border-color <color>`
+- `--pane-active-border-color <color>`
+- `--pane-muted-border-color <color>`
+- `--active-pane-highlight / --no-active-pane-highlight`
+- `--auto-geometry-stack-max-aspect <float>`
+- `--auto-geometry-tall-max-aspect <float>`
+- `--auto-geometry-wide-min-aspect <float>`
+- `--live-reflow / --no-live-reflow`
+- `--live-reflow-min-interval-ms <int>`
 
-```bash
-./launcher.py --all --layout auto-geometry --live-reflow
-```
+### Shared monitor flags (`--` pass-through)
+
+- `--interval <seconds>`
+- `--window <seconds>`
+- `--title <text>`
+- `--no-legend`
+- `--frame / --no-frame`
+- `--title-color <color>`
+- `--axes-color <color>`
+- `--ticks-color <color>`
+- `--canvas-color <color>`
+- `--series-colors c1,c2,...`
+- `--series-color name=color` (repeatable)
 
 ## Available Monitors
 
-From current registry:
+Current registry names:
 
 - `cpu`
 - `gpu`
-- `memory` (alias: `mem`)
+- `memory` (`mem`)
 - `net`
-- `storage` (aliases: `disk`, `io`)
+- `storage` (`disk`, `io`)
 
-Use `./launcher.py --list` to confirm host availability (`gpu` depends on NVML).
-
-## Layout Behavior (Technical)
-
-### 1) Grid size selection
-
-For adaptive/grid layouts, launcher evaluates candidate `(cols, rows)` pairs and scores each:
-
-- `rows = ceil(count / cols)`
-- `empties = rows * cols - count`
-- `ratio = cols / rows`
-- `score = ratio_penalty + empty_penalty + line_penalty`
-
-Where:
-
-- `ratio_penalty = abs(log(ratio / target_ratio))`
-- `empty_penalty = empties * 0.12`
-- `line_penalty = 1.0` when monitor count >= 4 and layout collapses to 1 row or 1 column
-
-Target ratio by mode:
-
-- `auto`: follows terminal aspect ratio (clamped)
-- `auto-geometry`: explicit geometry mode:
-  - narrow terminals (`width/height <= 0.95` by default) -> `1xN` vertical stack
-  - wide terminals (`width/height >= 2.40` by default) -> uses `auto-wide`
-  - between those -> uses square/tall bias based on aspect
-- `auto-square` / `square` / `grid`: target `1.0`
-- `auto-wide` / `wide`: bias toward more columns
-- `auto-tall` / `tall`: bias toward more rows
-
-### 2) Pane construction
-
-Grid launch flow:
-
-1. Create detached session with one placeholder pane.
-2. Split vertically into target row count.
-3. Split each row horizontally into that row's target column count.
-4. Sort panes by `(top, left)` for stable row-major assignment.
-5. `respawn-pane` each slot with monitor command (or blank placeholder if padded).
-
-This avoids `tmux tiled` surprises and gives deterministic placement.
-
-### 2b) Live reflow behavior
-
-- Live reflow does not restart monitor processes.
-- On resize, it re-applies a tmux layout (`even-vertical`, `even-horizontal`, or `tiled`) based on current pane count and terminal aspect.
-- This keeps CPU cost low; tradeoff is that complex multi-row grids under `tiled` are approximate during live reflow.
-
-### 3) Scaling/readability implications
-
-- With `--pad-empty`, pane geometry is uniform across rows, which helps visual consistency and perceived scaling.
-- With `--no-pad-empty`, no blank panes are created, but last-row panes can be larger.
-- Chart y-scaling is per-monitor process in `BaseMonitor`; each pane scales independently by its series mode.
+Use `./launcher.py --list` to verify runtime availability.
 
 ## Session Lifecycle
 
-- If session exists, launcher attaches/switches immediately and does not rebuild layout.
-- To apply a changed layout flag set, recreate session:
+If the session already exists, launcher reuses it.
+To apply new layout construction flags, recreate the session:
 
 ```bash
 tmux kill-session -t muxmon
-./launcher.py --all --layout auto-square
+./launcher.py --all --layout auto-geometry
 ```
-
-## Runtime/Dependency Notes
-
-- `launcher.py` re-execs into `./venv/bin/python3` when available.
-- Monitor pane commands run with quoted args (`shlex.quote`) and `PYTHONPATH` set to project root.
-- `tmux` status line is disabled for cleaner chart panes.
 
 ## Troubleshooting
 
-- Border still visible:
-  - turn off both systems: `--no-pane-borders -- --no-frame`
-  - ensure you started a new session after changing launcher flags
-- First pane border color differs from others:
-  - this is active-pane highlighting in tmux
-  - use `--no-active-pane-highlight` for uniform pane borders
-- Layout did not change:
-  - kill existing session first (`tmux kill-session -t <session>`)
-- Unknown monitor error:
-  - check `./launcher.py --list`
-  - verify alias spelling (`mem`, `disk`, `io`)
+- CPU pane border color differs from others:
+  - disable active highlight: `--no-active-pane-highlight`
+- Borders still visible with `--no-pane-borders`:
+  - tmux separators are muted, not removed, on tmux 3.3a
+- Layout unchanged after flag changes:
+  - kill/recreate session

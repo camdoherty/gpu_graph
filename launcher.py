@@ -347,6 +347,7 @@ def _plan_grid_dims(
     auto_geometry_tall_max_aspect: float = AUTO_GEOMETRY_TALL_MAX_ASPECT_DEFAULT,
     auto_geometry_wide_min_aspect: float = AUTO_GEOMETRY_WIDE_MIN_ASPECT_DEFAULT,
 ) -> tuple[int, int]:
+    original_layout = layout
     term_aspect = term_cols / max(1.0, float(term_rows))
     if layout == "auto-geometry":
         if count >= 3 and term_aspect <= auto_geometry_stack_max_aspect:
@@ -368,7 +369,15 @@ def _plan_grid_dims(
         ratio_penalty = abs(math.log(max(0.01, ratio) / target_ratio))
         empty_penalty = empties * 0.12
         line_penalty = 1.0 if count >= 4 and (rows == 1 or cols == 1) else 0.0
-        score = ratio_penalty + empty_penalty + line_penalty
+        cell_shape_penalty = 0.0
+        if original_layout == "auto-geometry":
+            # Prefer panes that are at least slightly width-leaning rectangles.
+            # cell_aspect = (cell_width / cell_height) in terminal character cells.
+            cell_aspect = term_aspect * (rows / cols)
+            if cell_aspect < 1.15:
+                cell_shape_penalty = (1.15 - cell_aspect) * 1.2
+
+        score = ratio_penalty + empty_penalty + line_penalty + cell_shape_penalty
 
         candidate = (cols, rows, score, empties)
         if best is None:
