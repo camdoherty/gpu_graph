@@ -343,6 +343,7 @@ def _plan_grid_dims(
     term_cols: int,
     term_rows: int,
     *,
+    pad_empty: bool = True,
     auto_geometry_stack_max_aspect: float = AUTO_GEOMETRY_STACK_MAX_ASPECT_DEFAULT,
     auto_geometry_tall_max_aspect: float = AUTO_GEOMETRY_TALL_MAX_ASPECT_DEFAULT,
     auto_geometry_wide_min_aspect: float = AUTO_GEOMETRY_WIDE_MIN_ASPECT_DEFAULT,
@@ -369,6 +370,10 @@ def _plan_grid_dims(
         ratio_penalty = abs(math.log(max(0.01, ratio) / target_ratio))
         empty_penalty = empties * 0.12
         line_penalty = 1.0 if count >= 4 and (rows == 1 or cols == 1) else 0.0
+        imbalance_penalty = 0.0
+        if not pad_empty:
+            row_counts = _row_counts(count, rows, cols, pad_empty=False)
+            imbalance_penalty = (max(row_counts) - min(row_counts)) * 0.22
         cell_shape_penalty = 0.0
         if original_layout == "auto-geometry":
             # Prefer panes that are at least slightly width-leaning rectangles.
@@ -377,7 +382,13 @@ def _plan_grid_dims(
             if cell_aspect < 1.15:
                 cell_shape_penalty = (1.15 - cell_aspect) * 1.2
 
-        score = ratio_penalty + empty_penalty + line_penalty + cell_shape_penalty
+        score = (
+            ratio_penalty
+            + empty_penalty
+            + line_penalty
+            + imbalance_penalty
+            + cell_shape_penalty
+        )
 
         candidate = (cols, rows, score, empties)
         if best is None:
@@ -484,6 +495,7 @@ def _launch_grid(
         layout,
         term_cols,
         term_rows,
+        pad_empty=pad_empty,
         auto_geometry_stack_max_aspect=auto_geometry_stack_max_aspect,
         auto_geometry_tall_max_aspect=auto_geometry_tall_max_aspect,
         auto_geometry_wide_min_aspect=auto_geometry_wide_min_aspect,
