@@ -10,6 +10,7 @@ Subclasses implement: name, default_title, add_args(), setup(), sample().
 from __future__ import annotations
 
 import math
+import re
 import signal
 import sys
 import time
@@ -197,13 +198,38 @@ class BaseMonitor(ABC):
         self._series.append(s)
         self._series_map[name] = s
 
+    @staticmethod
+    def _normalize_color_token(color: str | int | None) -> str | int | None:
+        """Normalize CLI color tokens for plotext.
+
+        plotext accepts:
+        - named colors as strings (e.g. "cyan")
+        - 0..255 palette colors as integers (not "colourNNN" strings)
+        - RGB tuples (not used by our CLI currently)
+
+        We accept "colourNNN", "colorNNN", and raw "NNN" for convenience.
+        """
+        if color is None:
+            return None
+        if isinstance(color, int):
+            return color if 0 <= color <= 255 else color
+        token = color.strip()
+        if not token:
+            return token
+        m = re.fullmatch(r"(?:colou?r)?(\d{1,3})", token, flags=re.IGNORECASE)
+        if m:
+            code = int(m.group(1))
+            if 0 <= code <= 255:
+                return code
+        return token
+
     # ---- rendering ----
 
     def _apply_series_color_overrides(self) -> None:
         if self.args.series_colors:
             colors = [c.strip() for c in self.args.series_colors.split(",") if c.strip()]
             for s, color in zip(self._series, colors):
-                s.color = color
+                s.color = self._normalize_color_token(color)
 
         if not self.args.series_color:
             return
@@ -226,7 +252,7 @@ class BaseMonitor(ABC):
                 sys.exit(2)
             s = self._series_map.get(name)
             if s is not None:
-                s.color = color
+                s.color = self._normalize_color_token(color)
 
     def _draw(self, *, force: bool = False) -> None:
         now = time.monotonic()
@@ -237,12 +263,16 @@ class BaseMonitor(ABC):
         plt.clf()
         plt.theme("clear")
         plt.plotsize(None, None)
-        if self.args.canvas_color:
-            plt.canvas_color(self.args.canvas_color)
-        if self.args.axes_color:
-            plt.axes_color(self.args.axes_color)
-        if self.args.ticks_color:
-            plt.ticks_color(self.args.ticks_color)
+        canvas_color = self._normalize_color_token(self.args.canvas_color)
+        axes_color = self._normalize_color_token(self.args.axes_color)
+        ticks_color = self._normalize_color_token(self.args.ticks_color)
+        title_color = self._normalize_color_token(self.args.title_color)
+        if canvas_color:
+            plt.canvas_color(canvas_color)
+        if axes_color:
+            plt.axes_color(axes_color)
+        if ticks_color:
+            plt.ticks_color(ticks_color)
 
         # Group series by unit_mode for scaling
         y_min, y_max = 0.0, 100.0
@@ -297,7 +327,7 @@ class BaseMonitor(ABC):
         title_text = "  ".join(title_parts)
 
         plt.text(title_text, x=-self.window_seconds / 2, y=y_max * 0.9,
-                 color=self.args.title_color, alignment="center")
+                 color=title_color, alignment="center")
 
         sys.stdout.write("\033[H" + plt.build().rstrip() + "\033[J")
         sys.stdout.flush()
