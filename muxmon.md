@@ -2,6 +2,38 @@
 
 `muxmon` launches monitor modules into a `tmux` session and arranges them in adaptive pane layouts.
 
+```bash
+# Useful examples (copy/paste)
+
+# 1) List monitors
+/home/cad/dev/gpu_graph/launcher.py --list
+
+# 2) Default adaptive geometry for all available monitors
+/home/cad/dev/gpu_graph/launcher.py --all --layout auto-geometry
+
+# GOOD ALL 3) Preferred no-frame dashboard with live resize reflow 
+/home/cad/dev/gpu_graph/launcher.py --all --layout auto-geometry --live-reflow --no-pad-empty --pane-borders --no-active-pane-highlight -- --no-frame
+
+# 4) Same as above, but low render overhead
+/home/cad/dev/gpu_graph/launcher.py --all --layout auto-geometry --live-reflow --no-pad-empty -- --no-frame --interval 0.5 --draw-interval 1.0
+
+# 5) All borders ON (tmux separators + chart frames)
+/home/cad/dev/gpu_graph/launcher.py --all --pane-borders -- --frame
+
+# 6) All borders OFF (muted tmux separators + no chart frame)
+/home/cad/dev/gpu_graph/launcher.py --all --no-pane-borders -- --no-frame
+
+# 7) Custom pane border colors
+/home/cad/dev/gpu_graph/launcher.py --all --pane-borders --pane-border-color colour240 --pane-active-border-color colour45 --active-pane-highlight
+
+# 8) Custom chart colors
+/home/cad/dev/gpu_graph/launcher.py --all -- --frame --title-color white --axes-color colour240 --ticks-color colour240 --canvas-color black --series-colors cyan,magenta,green,yellow
+
+# 9) Recreate session after layout flag changes
+tmux kill-session -t muxmon
+/home/cad/dev/gpu_graph/launcher.py --all --layout auto-geometry
+```
+
 ## Goal
 
 Create a reliable adaptive grid that keeps panes readable across terminal sizes.
